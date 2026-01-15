@@ -126,14 +126,48 @@ function App() {
     sendMessage(option)
   }
 
-  const handleReset = () => {
+  const handleReset = async () => {
+    // Clear all state
     setMessages([])
     setOptions([])
     setResourceSummary(null)
     setCostEstimate(null)
     setTerraformCode(null)
     setCreatedResource(null)
-    sendMessage('restart')
+    setCurrentState('initial')
+    setIsLoading(true)
+    
+    try {
+      // Create a fresh new session
+      const response = await fetch(`${API_BASE}/session`, {
+        method: 'POST',
+      })
+      const data = await response.json()
+      setSessionId(data.session_id)
+      
+      // Get welcome message
+      const chatResponse = await fetch(`${API_BASE}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: data.session_id,
+          message: '',
+        }),
+      })
+      const chatData = await chatResponse.json()
+      
+      setMessages([{ role: 'assistant', content: chatData.message }])
+      setCurrentState(chatData.state)
+      setOptions(chatData.options || [])
+    } catch (error) {
+      console.error('Failed to reset session:', error)
+      setMessages([{
+        role: 'assistant',
+        content: '⚠️ Failed to reset. Please refresh the page.',
+      }])
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
