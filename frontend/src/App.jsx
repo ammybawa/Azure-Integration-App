@@ -41,8 +41,21 @@ function App() {
       const data = await response.json()
       setSessionId(data.session_id)
       
-      // Send initial empty message to get welcome
-      await sendMessage('', data.session_id)
+      // Send initial message to get welcome (only once)
+      const chatResponse = await fetch(`${API_BASE}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: data.session_id,
+          message: '',
+        }),
+      })
+      const chatData = await chatResponse.json()
+      
+      setMessages([{ role: 'assistant', content: chatData.message }])
+      setCurrentState(chatData.state)
+      setOptions(chatData.options || [])
+      
     } catch (error) {
       console.error('Failed to create session:', error)
       setMessages([{
@@ -53,11 +66,16 @@ function App() {
   }
 
   const sendMessage = async (message, sid = sessionId) => {
-    if (!sid) return
+    if (!sid) {
+      console.error('No session ID available')
+      return
+    }
 
+    const trimmedMessage = message.trim()
+    
     // Add user message to chat (if not empty)
-    if (message.trim()) {
-      setMessages(prev => [...prev, { role: 'user', content: message }])
+    if (trimmedMessage) {
+      setMessages(prev => [...prev, { role: 'user', content: trimmedMessage }])
     }
 
     setIsLoading(true)
@@ -71,7 +89,7 @@ function App() {
         },
         body: JSON.stringify({
           session_id: sid,
-          message: message,
+          message: trimmedMessage,
         }),
       })
 
