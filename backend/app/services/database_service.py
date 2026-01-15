@@ -1,8 +1,8 @@
 """Azure Database provisioning service."""
 from typing import Optional, Dict, Any, List
 import secrets
-from azure.mgmt.rdbms.postgresql_flexible import PostgreSQLManagementClient
-from azure.mgmt.rdbms.mysql_flexible import MySQLManagementClient
+from azure.mgmt.rdbms.postgresql_flexibleservers import PostgreSQLManagementClient
+from azure.mgmt.rdbms.mysql_flexibleservers import MySQLManagementClient
 from azure.mgmt.sql import SqlManagementClient
 from azure.mgmt.cosmosdb import CosmosDBManagementClient
 from ..auth.azure_auth import get_auth_manager
