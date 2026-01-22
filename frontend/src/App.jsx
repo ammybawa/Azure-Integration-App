@@ -1,13 +1,17 @@
 import { useState, useEffect, useRef } from 'react'
+import { AuthProvider, useAuth } from './context/AuthContext'
+import LoginPage from './pages/LoginPage'
+import AdminPage from './pages/AdminPage'
 import ChatMessage from './components/ChatMessage'
 import ChatInput from './components/ChatInput'
 import ResourceSummary from './components/ResourceSummary'
 import Header from './components/Header'
-import { Cloud, Sparkles, Server, Database, Network, Box, HardDrive } from 'lucide-react'
+import { Cloud, Sparkles, Server, Database, Network, Box, Loader2 } from 'lucide-react'
 
 const API_BASE = '/api'
 
-function App() {
+function AppContent() {
+  const { isAuthenticated, loading: authLoading, getAuthHeader, isAdmin } = useAuth()
   const [sessionId, setSessionId] = useState(null)
   const [messages, setMessages] = useState([])
   const [isLoading, setIsLoading] = useState(false)
@@ -17,12 +21,15 @@ function App() {
   const [terraformCode, setTerraformCode] = useState(null)
   const [createdResource, setCreatedResource] = useState(null)
   const [currentState, setCurrentState] = useState('initial')
+  const [showAdmin, setShowAdmin] = useState(false)
   const messagesEndRef = useRef(null)
 
-  // Initialize session on mount
+  // Initialize session when authenticated
   useEffect(() => {
-    initSession()
-  }, [])
+    if (isAuthenticated && !sessionId) {
+      initSession()
+    }
+  }, [isAuthenticated])
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -37,6 +44,7 @@ function App() {
     try {
       const response = await fetch(`${API_BASE}/session`, {
         method: 'POST',
+        headers: getAuthHeader()
       })
       const data = await response.json()
       setSessionId(data.session_id)
@@ -44,7 +52,10 @@ function App() {
       // Send initial message to get welcome (only once)
       const chatResponse = await fetch(`${API_BASE}/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
         body: JSON.stringify({
           session_id: data.session_id,
           message: '',
@@ -60,7 +71,7 @@ function App() {
       console.error('Failed to create session:', error)
       setMessages([{
         role: 'assistant',
-        content: '⚠️ Failed to connect to the server. Please make sure the backend is running on http://localhost:8000',
+        content: '⚠️ Failed to connect to the server. Please make sure the backend is running.',
       }])
     }
   }
@@ -86,6 +97,7 @@ function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...getAuthHeader()
         },
         body: JSON.stringify({
           session_id: sid,
@@ -141,6 +153,7 @@ function App() {
       // Create a fresh new session
       const response = await fetch(`${API_BASE}/session`, {
         method: 'POST',
+        headers: getAuthHeader()
       })
       const data = await response.json()
       setSessionId(data.session_id)
@@ -148,7 +161,10 @@ function App() {
       // Get welcome message
       const chatResponse = await fetch(`${API_BASE}/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
         body: JSON.stringify({
           session_id: data.session_id,
           message: '',
@@ -170,6 +186,28 @@ function App() {
     }
   }
 
+  // Show loading while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-azure-500 animate-spin mx-auto mb-4" />
+          <p className="text-slate-400">Loading...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show login if not authenticated
+  if (!isAuthenticated) {
+    return <LoginPage />
+  }
+
+  // Show admin page if requested
+  if (showAdmin && isAdmin()) {
+    return <AdminPage onBack={() => setShowAdmin(false)} />
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Background decorations */}
@@ -187,7 +225,10 @@ function App() {
       </div>
 
       {/* Header */}
-      <Header onReset={handleReset} />
+      <Header 
+        onReset={handleReset} 
+        onAdminClick={isAdmin() ? () => setShowAdmin(true) : null}
+      />
 
       {/* Main chat container */}
       <main className="flex-1 container mx-auto max-w-4xl px-4 py-6 flex flex-col">
@@ -291,5 +332,12 @@ function getPlaceholder(state) {
   }
 }
 
-export default App
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  )
+}
 
+export default App

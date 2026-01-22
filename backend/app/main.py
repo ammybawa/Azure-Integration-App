@@ -1,7 +1,7 @@
 """Main FastAPI application for Azure Chatbot."""
 import os
 from typing import Optional
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -33,6 +33,9 @@ from .services.pricing_service import PricingService
 from .services.database_service import DatabaseService
 from .terraform.generator import TerraformGenerator
 from .auth.azure_auth import get_auth_manager
+from .auth.routes import router as auth_router
+from .auth.security import get_current_user, get_current_user_optional, TokenData
+from .auth.user_store import get_user_store
 
 # Load environment variables
 load_dotenv()
@@ -68,6 +71,12 @@ conversation_manager = get_conversation_manager()
 pricing_service = PricingService()
 terraform_generator = TerraformGenerator()
 
+# Include auth routes
+app.include_router(auth_router)
+
+# Initialize user store (creates default admin)
+user_store = get_user_store()
+
 
 class SessionResponse(BaseModel):
     """Response for session creation."""
@@ -82,9 +91,18 @@ async def root():
 
 
 @app.post("/api/session", response_model=SessionResponse)
-async def create_session():
-    """Create a new chat session."""
+async def create_session(
+    current_user: Optional[TokenData] = Depends(get_current_user_optional)
+):
+    """Create a new chat session. Authentication optional but recommended."""
     session_id = conversation_manager.create_session()
+    
+    # Store user info in session if authenticated
+    if current_user:
+        session = conversation_manager.get_session(session_id)
+        session.collected_params["_user_id"] = current_user.user_id
+        session.collected_params["_username"] = current_user.username
+    
     return SessionResponse(
         session_id=session_id,
         message="Session created. How can I help you create Azure resources today?"

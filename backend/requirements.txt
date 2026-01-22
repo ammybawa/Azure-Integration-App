@@ -21,6 +21,11 @@ httpx==0.26.0
 aiohttp==3.9.1
 six>=1.16.0
 
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+email-validator==2.1.0
+
 # Cryptography for SSH key generation
 cryptography==41.0.7
 
