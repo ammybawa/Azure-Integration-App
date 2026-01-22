@@ -26,12 +26,16 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash."""
-    return pwd_context.verify(plain_password, hashed_password)
+    # Truncate to 72 bytes (bcrypt limit)
+    truncated = plain_password[:72] if len(plain_password) > 72 else plain_password
+    return pwd_context.verify(truncated, hashed_password)
 
 
 def hash_password(password: str) -> str:
     """Hash a password."""
-    return pwd_context.hash(password)
+    # Truncate to 72 bytes (bcrypt limit)
+    truncated = password[:72] if len(password) > 72 else password
+    return pwd_context.hash(truncated)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
